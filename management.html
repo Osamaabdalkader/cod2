@@ -27,46 +27,157 @@
         </div>
         
         <div class="tab-content active">
-            <h2>إدارة أعضاء الشبكة</h2>
-            <p>من هنا يمكنك إدارة جميع أفراد شبكتك وتتبع أدائهم.</p>
-            
-            <div class="filters">
-                <select class="filter-select">
-                    <option value="">جميع الأعضاء</option>
-                    <option value="direct">الإحالات المباشرة فقط</option>
-                    <option value="level">حسب المستوى</option>
-                </select>
-                
-                <input type="text" placeholder="ابحث بالاسم أو البريد">
-                
-                <button><i class="fas fa-filter"></i> تطبيق الفلتر</button>
+            <div class="page-header">
+                <h2><i class="fas fa-users"></i> إدارة أعضاء الشبكة</h2>
+                <p>من هنا يمكنك إدارة جميع أفراد شبكتك بجميع مستوياتهم وتتبع أدائهم.</p>
             </div>
             
-            <div style="overflow-x: auto;">
-                <table class="referrals-table">
-                    <thead>
-                        <tr>
-                            <th>الاسم</th>
-                            <th>البريد الإلكتروني</th>
-                            <th>المستوى</th>
-                            <th>تاريخ الانضمام</th>
-                            <th>الإحالات</th>
-                            <th>النقاط</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="network-members">
-                        <tr>
-                            <td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="management-tools">
+                <div class="tools-section">
+                    <h3><i class="fas fa-tools"></i> أدوات الإدارة</h3>
+                    <div class="tools-grid">
+                        <div class="tool-card" onclick="app.sendBulkMessage()">
+                            <div class="tool-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="tool-info">
+                                <h4>رسالة جماعية</h4>
+                                <p>إرسال رسالة لجميع الأعضاء</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-card" onclick="app.exportData()">
+                            <div class="tool-icon">
+                                <i class="fas fa-file-export"></i>
+                            </div>
+                            <div class="tool-info">
+                                <h4>تصدير البيانات</h4>
+                                <p>تصدير بيانات الشبكة</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-card" onclick="app.managePoints()">
+                            <div class="tool-icon">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                            <div class="tool-info">
+                                <h4>إدارة النقاط</h4>
+                                <p>منح أو سحب النقاط</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tool-card" onclick="app.managePermissions()">
+                            <div class="tool-icon">
+                                <i class="fas fa-user-lock"></i>
+                            </div>
+                            <div class="tool-info">
+                                <h4>الصلاحيات</h4>
+                                <p>إدارة صلاحيات الأعضاء</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filters-section">
+                    <h3><i class="fas fa-filter"></i> filtrers</h3>
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label>المستوى</label>
+                            <select id="level-filter" class="filter-select">
+                                <option value="">جميع المستويات</option>
+                                <option value="0">المستوى 0 (أنت)</option>
+                                <option value="1">المستوى 1</option>
+                                <option value="2">المستوى 2</option>
+                                <option value="3">المستوى 3+</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>الحالة</label>
+                            <select id="status-filter" class="filter-select">
+                                <option value="">جميع الحالات</option>
+                                <option value="active">نشط</option>
+                                <option value="inactive">غير نشط</option>
+                                <option value="suspended">موقوف</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>فرز حسب</label>
+                            <select id="sort-filter" class="filter-select">
+                                <option value="joinDate">تاريخ الانضمام</option>
+                                <option value="name">الاسم</option>
+                                <option value="points">النقاط</option>
+                                <option value="level">المستوى</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>بحث</label>
+                            <div class="search-input">
+                                <input type="text" id="member-search" placeholder="ابحث بالاسم أو البريد">
+                                <button onclick="app.searchMembers()"><i class="fas fa-search"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="apply-filters" onclick="app.applyFilters()">تطبيق الفلتر</button>
+                </div>
             </div>
             
-            <div style="margin-top: 20px; text-align: center;">
-                <button><i class="fas fa-chevron-right"></i></button>
-                <span style="margin: 0 10px;">الصفحة 1 من 1</span>
-                <button><i class="fas fa-chevron-left"></i></button>
+            <div class="table-section">
+                <div class="table-header">
+                    <h3><i class="fas fa-list"></i> قائمة أعضاء الشبكة</h3>
+                    <div class="table-actions">
+                        <button class="btn-secondary" onclick="app.selectAll()"><i class="fas fa-check-square"></i> تحديد الكل</button>
+                        <button class="btn-primary" onclick="app.exportSelected()"><i class="fas fa-download"></i> تصدير المحدد</button>
+                        <button class="btn-warning" onclick="app.refreshData()"><i class="fas fa-sync"></i> تحديث</button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="select-all">
+                                </th>
+                                <th>الاسم</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>المستوى</th>
+                                <th>تاريخ الانضمام</th>
+                                <th>النقاط</th>
+                                <th>الإحالات</th>
+                                <th>الحالة</th>
+                                <th width="150">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="network-members">
+                            <tr>
+                                <td colspan="9" style="text-align: center;">جاري تحميل البيانات...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination">
+                    <button class="pagination-btn" onclick="app.prevPage()"><i class="fas fa-chevron-right"></i> السابق</button>
+                    <span class="pagination-info">الصفحة <span id="current-page">1</span> من <span id="total-pages">1</span></span>
+                    <button class="pagination-btn" onclick="app.nextPage()">التالي <i class="fas fa-chevron-left"></i></button>
+                </div>
+            </div>
+            
+            <div class="bulk-actions">
+                <h3><i class="fas fa-cogs"></i> إجراءات جماعية</h3>
+                <div class="bulk-options">
+                    <select id="bulk-action" class="bulk-select">
+                        <option value="">اختر إجراء...</option>
+                        <option value="message">إرسال رسالة</option>
+                        <option value="addPoints">منح نقاط</option>
+                        <option value="removePoints">سحب نقاط</option>
+                        <option value="changeStatus">تغيير الحالة</option>
+                    </select>
+                    <button class="btn-primary" onclick="app.applyBulkAction()">تطبيق على المحدد</button>
+                </div>
             </div>
         </div>
     </div>
@@ -79,5 +190,15 @@
     <!-- ملفات التطبيق -->
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
+
+    <script>
+        // تحديد/إلغاء تحديد الكل
+        document.getElementById('select-all').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.member-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+    </script>
 </body>
-</html>
+                    </html>
