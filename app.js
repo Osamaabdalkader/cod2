@@ -1,4 +1,4 @@
-// نظام الإحالة المتكامل
+// نظام الإحالة المتكامل - نسخة معالجة للأخطاء
 class ReferralSystem {
     constructor() {
         this.currentUser = null;
@@ -10,10 +10,23 @@ class ReferralSystem {
         this.totalPages = 1;
         this.filteredMembers = [];
         
-        // التحقق من وجود Firebase
+        // التحقق من تحميل Firebase أولاً
         if (typeof firebase === 'undefined') {
             console.error("Firebase is not loaded");
             this.showGlobalAlert("error", "لم يتم تحميل Firebase بشكل صحيح. يرجى تحديث الصفحة.");
+            return;
+        }
+        
+        // التحقق من تهيئة Firebase
+        try {
+            if (!firebase.apps.length) {
+                console.error("Firebase not initialized");
+                this.showGlobalAlert("error", "لم يتم تهيئة Firebase. يرجى التحقق من الإعدادات.");
+                return;
+            }
+        } catch (error) {
+            console.error("Firebase check error:", error);
+            this.showGlobalAlert("error", "خطأ في التحقق من Firebase: " + error.message);
             return;
         }
         
@@ -22,9 +35,11 @@ class ReferralSystem {
 
     init() {
         try {
+            console.log("Initializing ReferralSystem...");
+            
             // التحقق من حالة المصادقة
             firebase.auth().onAuthStateChanged((user) => {
-                console.log("Auth state changed:", user);
+                console.log("Auth state changed:", user ? "User logged in" : "User logged out");
                 this.currentUser = user;
                 if (user) {
                     this.loadUserData(user.uid);
@@ -56,6 +71,8 @@ class ReferralSystem {
 
             // إعداد معالج الأحداث
             this.setupEventListeners();
+            
+            console.log("ReferralSystem initialized successfully");
         } catch (error) {
             console.error("Error initializing app:", error);
             this.showGlobalAlert("error", "خطأ في تهيئة التطبيق: " + error.message);
@@ -63,6 +80,8 @@ class ReferralSystem {
     }
 
     setupEventListeners() {
+        console.log("Setting up event listeners...");
+        
         // تسجيل الدخول
         const loginBtn = document.getElementById('login-btn');
         if (loginBtn) {
@@ -70,6 +89,8 @@ class ReferralSystem {
                 e.preventDefault();
                 this.handleLogin();
             });
+        } else {
+            console.warn("Login button not found");
         }
 
         // إنشاء حساب
@@ -79,6 +100,8 @@ class ReferralSystem {
                 e.preventDefault();
                 this.handleRegister();
             });
+        } else {
+            console.warn("Signup button not found");
         }
 
         // تسجيل الخروج
@@ -87,6 +110,8 @@ class ReferralSystem {
             logoutBtn.addEventListener('click', () => {
                 this.handleLogout();
             });
+        } else {
+            console.warn("Logout button not found");
         }
 
         // نسخ رابط الإحالة
@@ -95,6 +120,8 @@ class ReferralSystem {
             copyBtn.addEventListener('click', () => {
                 this.copyReferralLink();
             });
+        } else {
+            console.warn("Copy button not found");
         }
 
         // مشاركة على وسائل التواصل
@@ -105,6 +132,8 @@ class ReferralSystem {
         if (shareFbBtn) shareFbBtn.addEventListener('click', () => this.shareOnFacebook());
         if (shareTwitterBtn) shareTwitterBtn.addEventListener('click', () => this.shareOnTwitter());
         if (shareWhatsappBtn) shareWhatsappBtn.addEventListener('click', () => this.shareOnWhatsApp());
+        
+        console.log("Event listeners setup completed");
     }
 
     async handleLogin() {
@@ -704,275 +733,4 @@ class ReferralSystem {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
         for (let i = 0; i < 8; i++) {
-            result += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        return result;
-    }
-
-    async getUserIdFromReferralCode(referralCode) {
-        try {
-            const snapshot = await firebase.database().ref('referralCodes/' + referralCode).once('value');
-            return snapshot.val();
-        } catch (error) {
-            console.error("Error getting user ID from referral code:", error);
-            return null;
-        }
-    }
-
-    async updateReferrerStats(referrerId) {
-        try {
-            // حساب عدد الإحالات الكلي
-            const snapshot = await firebase.database().ref('userReferrals/' + referrerId).once('value');
-            const referralsCount = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
-            
-            // تحديث عدد الإحالات
-            await firebase.database().ref('users/' + referrerId + '/referralsCount').set(referralsCount);
-            
-        } catch (error) {
-            console.error("Error updating referrer stats:", error);
-        }
-    }
-
-    copyReferralLink() {
-        const referralLink = document.getElementById('referral-link');
-        if (!referralLink) return;
-        
-        referralLink.select();
-        document.execCommand('copy');
-        alert('تم نسخ رابط الإحالة!');
-    }
-
-    shareOnFacebook() {
-        const referralLink = document.getElementById('referral-link');
-        if (!referralLink) return;
-        
-        const url = encodeURIComponent(referralLink.value);
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
-    }
-
-    shareOnTwitter() {
-        const referralLink = document.getElementById('referral-link');
-        if (!referralLink) return;
-        
-        const text = encodeURIComponent('انضم إلى هذا الموقع الرائع عبر رابط الإحالة الخاص بي!');
-        const url = encodeURIComponent(referralLink.value);
-        window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
-    }
-
-    shareOnWhatsApp() {
-        const referralLink = document.getElementById('referral-link');
-        if (!referralLink) return;
-        
-        const text = encodeURIComponent('انضم إلى هذا الموقع الرائع عبر رابط الإحالة الخاص بي: ');
-        const url = encodeURIComponent(referralLink.value);
-        window.open(`https://wa.me/?text=${text}${url}`, '_blank');
-    }
-
-    updateAuthUI(isLoggedIn) {
-        const authElements = document.querySelectorAll('.auth-only');
-        const unauthElements = document.querySelectorAll('.unauth-only');
-        
-        if (isLoggedIn) {
-            authElements.forEach(el => {
-                if (el) el.style.display = 'block';
-            });
-            unauthElements.forEach(el => {
-                if (el) el.style.display = 'none';
-            });
-        } else {
-            authElements.forEach(el => {
-                if (el) el.style.display = 'none';
-            });
-            unauthElements.forEach(el => {
-                if (el) el.style.display = 'block';
-            });
-        }
-    }
-
-    async handleLogout() {
-        try {
-            await firebase.auth().signOut();
-            window.location.href = 'index.html';
-        } catch (error) {
-            console.error("Error signing out:", error);
-        }
-    }
-
-    showAlert(element, type, message) {
-        if (!element) return;
-        
-        element.textContent = message;
-        element.className = `alert alert-${type}`;
-        element.style.display = 'block';
-        
-        setTimeout(() => {
-            element.style.display = 'none';
-        }, 3000);
-    }
-
-    showGlobalAlert(type, message) {
-        // إنشاء عنصر تنبيه إذا لم يكن موجودًا
-        let alertEl = document.getElementById('global-alert');
-        if (!alertEl) {
-            alertEl = document.createElement('div');
-            alertEl.id = 'global-alert';
-            alertEl.style.position = 'fixed';
-            alertEl.style.top = '20px';
-            alertEl.style.right = '20px';
-            alertEl.style.left = '20px';
-            alertEl.style.zIndex = '10000';
-            alertEl.style.maxWidth = '500px';
-            alertEl.style.margin = '0 auto';
-            document.body.appendChild(alertEl);
-        }
-        
-        // تعيين المحتوى والنمط
-        alertEl.innerHTML = `
-            <div class="alert alert-${type}" style="margin: 0;">
-                ${message}
-                <button onclick="this.parentElement.style.display='none'" style="float: left; background: none; border: none; cursor: pointer;">×</button>
-            </div>
-        `;
-        alertEl.style.display = 'block';
-        
-        // إخفاء التنبيه بعد 5 ثوان
-        setTimeout(() => {
-            alertEl.style.display = 'none';
-        }, 5000);
-    }
-
-    // وظائف الإجراءات الجماعية
-    sendBulkMessage() {
-        const selectedMembers = this.getSelectedMembers();
-        if (selectedMembers.length === 0) {
-            alert('يرجى تحديد أعضاء على الأقل');
-            return;
-        }
-        
-        const message = prompt('أدخل الرسالة التي تريد إرسالها للأعضاء المحددين:');
-        if (message) {
-            alert(`سيتم إرسال الرسالة إلى ${selectedMembers.length} عضو: ${message}`);
-            // تنفيذ إرسال الرسالة هنا
-        }
-    }
-
-    exportData() {
-        const selectedMembers = this.getSelectedMembers();
-        const membersToExport = selectedMembers.length > 0 ? selectedMembers : this.filteredMembers;
-        
-        if (membersToExport.length === 0) {
-            alert('لا توجد بيانات للتصدير');
-            return;
-        }
-        
-        alert(`سيتم تصدير بيانات ${membersToExport.length} عضو`);
-        // تنفيذ التصدير هنا
-    }
-
-    managePoints() {
-        const selectedMembers = this.getSelectedMembers();
-        if (selectedMembers.length === 0) {
-            alert('يرجى تحديد أعضاء على الأقل');
-            return;
-        }
-        
-        const points = prompt('أدخل عدد النقاط التي تريد منحها/سحبها:');
-        if (points) {
-            const action = confirm('هل تريد منح هذه النقاط؟ (موافق للمنح، إلغاء للسحب)');
-            alert(`سيتم ${action ? 'منح' : 'سحب'} ${points} نقطة لـ ${selectedMembers.length} عضو`);
-            // تنفيذ إدارة النقاط هنا
-        }
-    }
-
-    managePermissions() {
-        alert('فتح نافذة إدارة الصلاحيات');
-        // تنفيذ إدارة الصلاحيات هنا
-    }
-
-    getSelectedMembers() {
-        const selected = [];
-        const checkboxes = document.querySelectorAll('.member-checkbox:checked');
-        
-        checkboxes.forEach(checkbox => {
-            const memberId = checkbox.getAttribute('data-id');
-            const member = this.filteredMembers.find(m => m.id === memberId);
-            if (member) selected.push(member);
-        });
-        
-        return selected;
-    }
-
-    exportSelected() {
-        const selectedMembers = this.getSelectedMembers();
-        if (selectedMembers.length === 0) {
-            alert('يرجى تحديد أعضاء على الأقل');
-            return;
-        }
-        
-        alert(`سيتم تصدير بيانات ${selectedMembers.length} عضو`);
-        // تنفيذ التصدير هنا
-    }
-
-    refreshData() {
-        this.loadManagementData();
-    }
-
-    applyBulkAction() {
-        const action = document.getElementById('bulk-action');
-        if (!action) return;
-        
-        const actionValue = action.value;
-        const selectedMembers = this.getSelectedMembers();
-        
-        if (selectedMembers.length === 0) {
-            alert('يرجى تحديد أعضاء على الأقل');
-            return;
-        }
-        
-        switch (actionValue) {
-            case 'message':
-                this.sendBulkMessage();
-                break;
-            case 'addPoints':
-                this.managePoints();
-                break;
-            case 'removePoints':
-                this.managePoints();
-                break;
-            case 'changeStatus':
-                this.bulkChangeStatus();
-                break;
-            default:
-                alert('يرجى اختيار إجراء');
-        }
-    }
-
-    bulkChangeStatus() {
-        const selectedMembers = this.getSelectedMembers();
-        const newStatus = prompt('أدخل الحالة الجديدة (active/inactive/suspended):');
-        
-        if (newStatus && ['active', 'inactive', 'suspended'].includes(newStatus)) {
-            alert(`سيتم تغيير حالة ${selectedMembers.length} عضو إلى ${newStatus}`);
-            // تنفيذ تغيير الحالة هنا
-        } else {
-            alert('الحالة غير صالحة. يجب أن تكون active أو inactive أو suspended');
-        }
-    }
-}
-
-// تهيئة التطبيق بعد تحميل DOM
-document.addEventListener('DOMContentLoaded', function() {
-    // التحقق من تحميل Firebase أولاً
-    if (typeof firebase === 'undefined') {
-        console.error("Firebase is not loaded");
-        alert("لم يتم تحميل Firebase. يرجى التحقق من اتصال الإنترنت وتحديث الصفحة.");
-        return;
-    }
-    
-    try {
-        window.app = new ReferralSystem();
-    } catch (error) {
-        console.error("App initialization error:", error);
-        alert("حدث خطأ في تهيئة التطبيق: " + error.message);
-    }
-});
+            result += characters.charAt(Math.floor(Math.random()
