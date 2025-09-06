@@ -9,55 +9,73 @@ class ReferralSystem {
         this.pageSize = 10;
         this.totalPages = 1;
         this.filteredMembers = [];
+        
+        // التحقق من وجود Firebase
+        if (typeof firebase === 'undefined') {
+            console.error("Firebase is not loaded");
+            this.showGlobalAlert("error", "لم يتم تحميل Firebase بشكل صحيح. يرجى تحديث الصفحة.");
+            return;
+        }
+        
         this.init();
     }
 
     init() {
-        // التحقق من حالة المصادقة
-        firebase.auth().onAuthStateChanged((user) => {
-            this.currentUser = user;
-            if (user) {
-                this.loadUserData(user.uid);
-                this.updateAuthUI(true);
-                
-                // إذا كانت صفحة الشبكة، تحميل الشبكة
-                if (window.location.pathname.includes('network.html')) {
-                    this.loadNetwork();
+        try {
+            // التحقق من حالة المصادقة
+            firebase.auth().onAuthStateChanged((user) => {
+                console.log("Auth state changed:", user);
+                this.currentUser = user;
+                if (user) {
+                    this.loadUserData(user.uid);
+                    this.updateAuthUI(true);
+                    
+                    // إذا كانت صفحة الشبكة، تحميل الشبكة
+                    if (window.location.pathname.includes('network.html')) {
+                        this.loadNetwork();
+                    }
+                    
+                    // إذا كانت صفحة الإدارة، تحميل بيانات الإدارة
+                    if (window.location.pathname.includes('management.html')) {
+                        this.loadManagementData();
+                    }
+                } else {
+                    this.updateAuthUI(false);
+                    // إذا لم يكن في صفحة تسجيل الدخول، إعادة التوجيه
+                    if (!window.location.pathname.includes('login.html') && 
+                        !window.location.pathname.includes('register.html') &&
+                        window.location.pathname !== '/' &&
+                        !window.location.pathname.includes('index.html')) {
+                        window.location.href = 'index.html';
+                    }
                 }
-                
-                // إذا كانت صفحة الإدارة، تحميل بيانات الإدارة
-                if (window.location.pathname.includes('management.html')) {
-                    this.loadManagementData();
-                }
-            } else {
-                this.updateAuthUI(false);
-                // إذا لم يكن في صفحة تسجيل الدخول، إعادة التوجيه
-                if (!window.location.pathname.includes('login.html') && 
-                    !window.location.pathname.includes('register.html') &&
-                    !window.location.pathname.includes('index.html')) {
-                    window.location.href = 'index.html';
-                }
-            }
-        });
+            }, (error) => {
+                console.error("Auth state change error:", error);
+                this.showGlobalAlert("error", "خطأ في نظام المصادقة: " + error.message);
+            });
 
-        // إعداد معالج الأحداث
-        this.setupEventListeners();
+            // إعداد معالج الأحداث
+            this.setupEventListeners();
+        } catch (error) {
+            console.error("Error initializing app:", error);
+            this.showGlobalAlert("error", "خطأ في تهيئة التطبيق: " + error.message);
+        }
     }
 
     setupEventListeners() {
         // تسجيل الدخول
-        const loginForm = document.getElementById('login-form');
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.handleLogin();
             });
         }
 
         // إنشاء حساب
-        const registerForm = document.getElementById('register-form');
-        if (registerForm) {
-            registerForm.addEventListener('submit', (e) => {
+        const signupBtn = document.getElementById('signup-btn');
+        if (signupBtn) {
+            signupBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.handleRegister();
             });
@@ -90,18 +108,18 @@ class ReferralSystem {
     }
 
     async handleLogin() {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
+        const email = document.getElementById('login-email');
+        const password = document.getElementById('login-password');
         const alert = document.getElementById('login-alert');
         
-        if (!email || !password) {
+        if (!email || !password || !email.value || !password.value) {
             this.showAlert(alert, 'error', 'يرجى ملء جميع الحقول');
             return;
         }
         
         try {
             this.showAlert(alert, 'info', 'جاري تسجيل الدخول...');
-            const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+            const userCredential = await firebase.auth().signInWithEmailAndPassword(email.value, password.value);
             this.showAlert(alert, 'success', 'تم تسجيل الدخول بنجاح');
             
             // تحميل بيانات المستخدم
@@ -113,18 +131,31 @@ class ReferralSystem {
             }, 1000);
             
         } catch (error) {
-            this.showAlert(alert, 'error', error.message);
+            console.error("Login error:", error);
+            let errorMessage = "حدث خطأ أثناء تسجيل الدخول";
+            
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = "البريد الإلكتروني غير مسجل";
+            } else if (error.code === 'auth/wrong-password') {
+                errorMessage = "كلمة المرور غير صحيحة";
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = "البريد الإلكتروني غير صالح";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "تم محاولة الدخول عدة مرات بشكل خاطئ، يرجى المحاولة لاحقاً";
+            }
+            
+            this.showAlert(alert, 'error', errorMessage);
         }
     }
 
     async handleRegister() {
-        const name = document.getElementById('register-name').value;
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
-        const referralCode = document.getElementById('referral-code').value;
+        const name = document.getElementById('signup-name');
+        const email = document.getElementById('signup-email');
+        const password = document.getElementById('signup-password');
+        const referralCode = document.getElementById('referral-code');
         const alert = document.getElementById('register-alert');
         
-        if (!name || !email || !password) {
+        if (!name || !email || !password || !name.value || !email.value || !password.value) {
             this.showAlert(alert, 'error', 'يرجى ملء جميع الحقول الإلزامية');
             return;
         }
@@ -133,7 +164,7 @@ class ReferralSystem {
             this.showAlert(alert, 'info', 'جاري إنشاء الحساب...');
             
             // إنشاء المستخدم في Authentication
-            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email.value, password.value);
             const userId = userCredential.user.uid;
             
             // إنشاء رمز إحالة فريد
@@ -141,12 +172,12 @@ class ReferralSystem {
             
             // حفظ بيانات المستخدم في Realtime Database
             await firebase.database().ref('users/' + userId).set({
-                name: name,
-                email: email,
+                name: name.value,
+                email: email.value,
                 referralCode: userReferralCode,
                 points: 0,
                 joinDate: new Date().toISOString(),
-                referredBy: referralCode || null,
+                referredBy: referralCode?.value || null,
                 status: 'active'
             });
             
@@ -154,8 +185,8 @@ class ReferralSystem {
             await firebase.database().ref('referralCodes/' + userReferralCode).set(userId);
             
             // إذا كان هناك رمز إحالة، إضافة العلاقة
-            if (referralCode) {
-                await this.processReferral(referralCode, userId, name, email);
+            if (referralCode?.value) {
+                await this.processReferral(referralCode.value, userId, name.value, email.value);
             }
             
             this.showAlert(alert, 'success', 'تم إنشاء الحساب بنجاح');
@@ -166,7 +197,20 @@ class ReferralSystem {
             }, 1000);
             
         } catch (error) {
-            this.showAlert(alert, 'error', error.message);
+            console.error("Registration error:", error);
+            let errorMessage = "حدث خطأ أثناء إنشاء الحساب";
+            
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = "البريد الإلكتروني مستخدم بالفعل";
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = "البريد الإلكتروني غير صالح";
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = "كلمة المرور ضعيفة، يجب أن تكون至少 6 أحرف";
+            } else if (error.code === 'auth/operation-not-allowed') {
+                errorMessage = "عملية التسجيل غير مسموحة";
+            }
+            
+            this.showAlert(alert, 'error', errorMessage);
         }
     }
 
@@ -174,7 +218,10 @@ class ReferralSystem {
         try {
             // البحث عن صاحب رمز الإحالة
             const referrerId = await this.getUserIdFromReferralCode(referralCode);
-            if (!referrerId) return;
+            if (!referrerId) {
+                console.log("Referral code not found:", referralCode);
+                return;
+            }
             
             // إضافة المستخدم الجديد إلى قائمة إحالات المُحيل
             await firebase.database().ref('userReferrals/' + referrerId + '/' + newUserId).set({
@@ -218,16 +265,16 @@ class ReferralSystem {
         const joinDate = document.getElementById('join-date');
         const referralLink = document.getElementById('referral-link');
         
-        if (usernameEl) usernameEl.textContent = this.userData.name;
+        if (usernameEl && this.userData.name) usernameEl.textContent = this.userData.name;
         if (userAvatar) userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.userData.name)}&background=random`;
         if (pointsCount) pointsCount.textContent = this.userData.points || '0';
         if (joinDate) joinDate.textContent = new Date(this.userData.joinDate).toLocaleDateString('ar-SA');
-        if (referralLink) referralLink.value = `${window.location.origin}?ref=${this.userData.referralCode}`;
+        if (referralLink) referralLink.value = `${window.location.origin}${window.location.pathname}?ref=${this.userData.referralCode}`;
         
         // تحميل عدد الإحالات
         if (referralsCount && this.currentUser) {
             this.loadReferralsCount(this.currentUser.uid).then(count => {
-                referralsCount.textContent = count;
+                if (referralsCount) referralsCount.textContent = count;
             });
         }
     }
@@ -307,6 +354,8 @@ class ReferralSystem {
     }
 
     renderNetwork(network, container) {
+        if (!container) return;
+        
         container.innerHTML = '';
         
         if (!network || Object.keys(network).length === 0) {
@@ -351,7 +400,8 @@ class ReferralSystem {
             const expandBtn = nodeElement.querySelector('.node-expand');
             expandBtn.onclick = () => this.toggleNodeExpansion(nodeElement, referrals, level + 1);
         } else {
-            nodeElement.querySelector('.node-expand').style.display = 'none';
+            const expandBtn = nodeElement.querySelector('.node-expand');
+            if (expandBtn) expandBtn.style.display = 'none';
         }
         
         container.appendChild(nodeElement);
@@ -469,7 +519,8 @@ class ReferralSystem {
         
         // حساب عدد الصفحات
         this.totalPages = Math.ceil(this.filteredMembers.length / this.pageSize);
-        document.getElementById('total-pages').textContent = this.totalPages;
+        const totalPagesEl = document.getElementById('total-pages');
+        if (totalPagesEl) totalPagesEl.textContent = this.totalPages;
         
         // عرض الصفحة الحالية
         this.showCurrentPage();
@@ -481,6 +532,8 @@ class ReferralSystem {
         const pageMembers = this.filteredMembers.slice(startIndex, endIndex);
         
         const membersTable = document.getElementById('network-members');
+        if (!membersTable) return;
+        
         membersTable.innerHTML = '';
         
         if (pageMembers.length === 0) {
@@ -488,8 +541,10 @@ class ReferralSystem {
             return;
         }
         
-        pageMembers.forEach(member => {
+        pageMembers.forEach(async (member) => {
             const row = membersTable.insertRow();
+            const referralsCount = await this.loadReferralsCount(member.id);
+            
             row.innerHTML = `
                 <td>
                     <input type="checkbox" class="member-checkbox" data-id="${member.id}">
@@ -499,7 +554,7 @@ class ReferralSystem {
                 <td><span class="user-badge level-${member.level}">مستوى ${member.level}</span></td>
                 <td>${new Date(member.joinDate).toLocaleDateString('ar-SA')}</td>
                 <td>${member.points || 0}</td>
-                <td>${await this.loadReferralsCount(member.id)}</td>
+                <td>${referralsCount}</td>
                 <td><span class="status-${member.status || 'active'}">${this.getStatusText(member.status || 'active')}</span></td>
                 <td>
                     <div class="action-buttons">
@@ -515,7 +570,8 @@ class ReferralSystem {
         });
         
         // تحديث معلومات الصفحة
-        document.getElementById('current-page').textContent = this.currentPage;
+        const currentPageEl = document.getElementById('current-page');
+        if (currentPageEl) currentPageEl.textContent = this.currentPage;
     }
 
     getStatusText(status) {
@@ -687,19 +743,28 @@ class ReferralSystem {
     }
 
     shareOnFacebook() {
-        const url = encodeURIComponent(document.getElementById('referral-link').value);
+        const referralLink = document.getElementById('referral-link');
+        if (!referralLink) return;
+        
+        const url = encodeURIComponent(referralLink.value);
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
     }
 
     shareOnTwitter() {
+        const referralLink = document.getElementById('referral-link');
+        if (!referralLink) return;
+        
         const text = encodeURIComponent('انضم إلى هذا الموقع الرائع عبر رابط الإحالة الخاص بي!');
-        const url = encodeURIComponent(document.getElementById('referral-link').value);
+        const url = encodeURIComponent(referralLink.value);
         window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
     }
 
     shareOnWhatsApp() {
+        const referralLink = document.getElementById('referral-link');
+        if (!referralLink) return;
+        
         const text = encodeURIComponent('انضم إلى هذا الموقع الرائع عبر رابط الإحالة الخاص بي: ');
-        const url = encodeURIComponent(document.getElementById('referral-link').value);
+        const url = encodeURIComponent(referralLink.value);
         window.open(`https://wa.me/?text=${text}${url}`, '_blank');
     }
 
@@ -708,11 +773,19 @@ class ReferralSystem {
         const unauthElements = document.querySelectorAll('.unauth-only');
         
         if (isLoggedIn) {
-            authElements.forEach(el => el.style.display = 'block');
-            unauthElements.forEach(el => el.style.display = 'none');
+            authElements.forEach(el => {
+                if (el) el.style.display = 'block';
+            });
+            unauthElements.forEach(el => {
+                if (el) el.style.display = 'none';
+            });
         } else {
-            authElements.forEach(el => el.style.display = 'none');
-            unauthElements.forEach(el => el.style.display = 'block');
+            authElements.forEach(el => {
+                if (el) el.style.display = 'none';
+            });
+            unauthElements.forEach(el => {
+                if (el) el.style.display = 'block';
+            });
         }
     }
 
@@ -735,6 +808,37 @@ class ReferralSystem {
         setTimeout(() => {
             element.style.display = 'none';
         }, 3000);
+    }
+
+    showGlobalAlert(type, message) {
+        // إنشاء عنصر تنبيه إذا لم يكن موجودًا
+        let alertEl = document.getElementById('global-alert');
+        if (!alertEl) {
+            alertEl = document.createElement('div');
+            alertEl.id = 'global-alert';
+            alertEl.style.position = 'fixed';
+            alertEl.style.top = '20px';
+            alertEl.style.right = '20px';
+            alertEl.style.left = '20px';
+            alertEl.style.zIndex = '10000';
+            alertEl.style.maxWidth = '500px';
+            alertEl.style.margin = '0 auto';
+            document.body.appendChild(alertEl);
+        }
+        
+        // تعيين المحتوى والنمط
+        alertEl.innerHTML = `
+            <div class="alert alert-${type}" style="margin: 0;">
+                ${message}
+                <button onclick="this.parentElement.style.display='none'" style="float: left; background: none; border: none; cursor: pointer;">×</button>
+            </div>
+        `;
+        alertEl.style.display = 'block';
+        
+        // إخفاء التنبيه بعد 5 ثوان
+        setTimeout(() => {
+            alertEl.style.display = 'none';
+        }, 5000);
     }
 
     // وظائف الإجراءات الجماعية
@@ -814,7 +918,10 @@ class ReferralSystem {
     }
 
     applyBulkAction() {
-        const action = document.getElementById('bulk-action').value;
+        const action = document.getElementById('bulk-action');
+        if (!action) return;
+        
+        const actionValue = action.value;
         const selectedMembers = this.getSelectedMembers();
         
         if (selectedMembers.length === 0) {
@@ -822,7 +929,7 @@ class ReferralSystem {
             return;
         }
         
-        switch (action) {
+        switch (actionValue) {
             case 'message':
                 this.sendBulkMessage();
                 break;
@@ -853,5 +960,19 @@ class ReferralSystem {
     }
 }
 
-// تهيئة التطبيق
-const app = new ReferralSystem();
+// تهيئة التطبيق بعد تحميل DOM
+document.addEventListener('DOMContentLoaded', function() {
+    // التحقق من تحميل Firebase أولاً
+    if (typeof firebase === 'undefined') {
+        console.error("Firebase is not loaded");
+        alert("لم يتم تحميل Firebase. يرجى التحقق من اتصال الإنترنت وتحديث الصفحة.");
+        return;
+    }
+    
+    try {
+        window.app = new ReferralSystem();
+    } catch (error) {
+        console.error("App initialization error:", error);
+        alert("حدث خطأ في تهيئة التطبيق: " + error.message);
+    }
+});
